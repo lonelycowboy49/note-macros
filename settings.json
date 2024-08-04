@@ -1,30 +1,33 @@
 {
   "note-macros": {
-    "dailyNote": [
-      {
-        "type": "note",
-        "directory": "Daily",
-        "extension": ".md",
-        "name": "daily-note",
-        "date": "yyyy-mm-dd"
-      }
-    ],
     "weeklyNote": [
       {
         "type": "note",
-        "directory": "Weekly",
+        "directory": "weekly",
         "extension": ".md",
         "name": "weekly-note",
-        "date": "yyyy-W"
+        "date": "yyyy-W",
+        "template": "weekly-template.md"
       }
     ],
     "monthlyNote": [
       {
         "type": "note",
-        "directory": "Monthly",
+        "directory": "monthly",
         "extension": ".md",
         "name": "monthly-note",
-        "date": "yyyy-mm"
+        "date": "yyyy-mm",
+        "template": "weekly-template.md"
+      }
+    ],
+    "meetingNote": [
+      {
+        "type": "note",
+        "directory": "meeting/?",
+        "extension": ".md",
+        "name": "?",
+        "date": "yyyy-mm-dd",
+        "template": "meeting-template.md"
       }
     ]
   }

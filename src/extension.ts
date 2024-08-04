@@ -101,48 +101,65 @@ function loadMacros(context: { subscriptions: any[] }) {
 }
 
 async function executeMacro(name: string) {
-  // iterate over every action in the macro
-  for (const action of macros[name]) {
+  const actions = macros[name] || [];
+  
+  // Prepare to handle note creation
+  let noteFileName: string | undefined;
+  let noteDirectoryName: string | undefined;
+
+  // Check if any action requires note creation and prompt for file name or directory if needed
+  for (const action of actions) {
+    if (action.type === "note") {
+      // Prompt for file name if not provided
+      if (!action.name || action.name === "?") {
+        noteFileName = await promptForFileName();
+      } else {
+        noteFileName = action.name;
+      }
+      
+      // Prompt for directory name if "?" is found in the directory structure
+      if (action.directory && action.directory.includes("?")) {
+        noteDirectoryName = await promptForDirectoryName(action.directory);
+      } else {
+        noteDirectoryName = action.directory;
+      }
+      break; // Exit after first note action to prevent multiple prompts
+    }
+  }
+
+  // Process each action
+  for (const action of actions) {
     console.log(`action is:`, action);
 
-    // if its a string assume its a command
+    // If it's a string, assume it's a command
     if (typeof action == "string") {
       await vscode.commands.executeCommand(action);
       await flushEventStack();
-      // otherwise check if its an object
     } else if (action instanceof Object) {
-      //
-      // Check if its a javascript macro
-      //
+      // Check if it's a JavaScript macro
       if (typeof action.javascript == "string") {
         await eval(`(async()=>{${action.javascript}})()`);
         await flushEventStack();
         continue;
-        // if its an array, convert the array to a string
       } else if (action.javascript instanceof Array) {
-        let javacsriptAction = action.javascript.join("\n");
-        await eval(`(async()=>{${javacsriptAction}})()`);
+        let javascriptAction = action.javascript.join("\n");
+        await eval(`(async()=>{${javascriptAction}})()`);
         await flushEventStack();
         continue;
       }
-      //
+
       // Check for injections
-      //
-      let replacements = [];
       let actionCopy = JSON.parse(JSON.stringify(action));
       if (action.injections) {
         for (let eachInjection of action.injections) {
-          //
           // Compute the value the user provided
-          //
           let value = eval(eachInjection.withResultOf);
           if (value instanceof Promise) {
             value = await value;
           }
           value = `${value}`;
-          //
-          // replace it in the arguments
-          //
+
+          // Replace it in the arguments
           let replacer = (name: string) => {
             if (typeof name == "string") {
               return name.replace(
@@ -153,14 +170,13 @@ async function executeMacro(name: string) {
             return name;
           };
           for (let eachKey in actionCopy.args) {
-            // if its a string value, then perform a replacement
-            // TODO, this is currently shallow, it should probably be recursive
+            // If it's a string value, then perform a replacement
             if (typeof actionCopy.args[eachKey] == "string") {
               actionCopy.args[eachKey] = replacer(actionCopy.args[eachKey]);
             }
           }
 
-          // convert arrays to strings
+          // Convert arrays to strings
           let hiddenConsole = actionCopy.hiddenConsole;
           if (hiddenConsole instanceof Array) {
             hiddenConsole = hiddenConsole.join("\n");
@@ -169,103 +185,148 @@ async function executeMacro(name: string) {
             hiddenConsole += "\n";
           }
 
-          // replace it in the console command
+          // Replace it in the console command
           actionCopy.hiddenConsole = replacer(hiddenConsole);
         }
       }
-      //
-      // run the command
-      //
+
+      // Run the command
       actionCopy.hiddenConsole && execSync(actionCopy.hiddenConsole);
       actionCopy.command &&
         (await vscode.commands.executeCommand(
           actionCopy.command,
           actionCopy.args
         ));
-      // Get Note Directory
-      function noteDirectory() {
-        if (typeof action.directory == "string") {
-          return action.directory;
-        } 
-      }
-      // Get File Extension
-      function noteExtension() {
-        if (typeof action.extension == "string") {
-          return action.extension;
-        } else {
-          return ".md";
-        }
-      }
 
-      //Get Date Format
-      function dateFormatted() {
-        if (typeof action.date == "string") {
-          const now = new Date();
-          return dateFormat(now, action.date);
-        } else {
-          const now = new Date();
-          return dateFormat(now, "yyyy-mm-dd");
-        }
-      }
-
-      function noteFileName() {
-        if (typeof action.name == "string") {
-          return `${dateFormatted()}-${action.name}`;
-        }
-      }
-      
-      function notePath() {
-        const rootDir = vscode.workspace.rootPath;
-        const noteDir = noteDirectory();
-
-        return `${rootDir}/${noteDir}`;
-      }
-
-      function newNote() {
-        return `${notePath()}/${noteFileName()}${noteExtension()}`;
-      }
-
-      async function createNoteIfNotExists() {
-        if (await pathExists()) {
-          return false;
-        }
-
-        await createNoteDirectoryIfNotExists();
-
-        await fs.promises.writeFile(newNote(), `# ${noteFileName()}`);
-        return true;
-      }
-
-      async function createNoteDirectoryIfNotExists() {
-        if (!(await pathExists())) {
-          await fs.promises.mkdir(notePath(), { recursive: true });
-        }
-      }
-
-      async function focusNote() {
-        const document = await workspace.openTextDocument(Uri.file(newNote()));
-        const editor = await window.showTextDocument(document);
-
-        // Move the cursor to end of the file
-        const { lineCount } = editor.document;
-        const { range } = editor.document.lineAt(lineCount - 1);
-        editor.selection = new Selection(range.end, range.end);
-      }
-
-      async function pathExists() {
-        const path = newNote();
-        return fs.promises
-          .access(path, fs.constants.F_OK)
-          .then(() => true)
-          .catch(() => false);
-      }
-
+      // Handle note creation
       if (action.type === "note") {
-        await createNoteIfNotExists();
-        await focusNote();
+        // Set the action name and directory to the prompted or default values
+        action.name = noteFileName;
+        action.directory = noteDirectoryName;
+        await createNoteIfNotExists(action);
+        await focusNote(action);
         console.log(`Completed openNote`);
         await flushEventStack();
       }
     }
   }
+}
+
+// Prompt for File Name if Needed
+async function promptForFileName(): Promise<string> {
+  const input = await window.showInputBox({
+    prompt: "Enter the file name for the new note",
+    placeHolder: "e.g., Meeting Notes",
+    validateInput: (value: string): string | undefined => {
+      return value.trim() === "" ? "File name cannot be empty" : undefined;
+    },
+  });
+  return input || "Untitled";
+}
+
+// Prompt for Directory Name if Needed
+async function promptForDirectoryName(baseDirectory: string): Promise<string> {
+  const input = await window.showInputBox({
+    prompt: "Enter the subdirectory name for the note",
+    placeHolder: "e.g., Project Alpha",
+    validateInput: (value: string): string | undefined => {
+      return value.trim() === "" ? "Directory name cannot be empty" : undefined;
+    },
+  });
+  // Replace the "?" in the base directory with the user's input
+  return baseDirectory.replace("?", input || "General");
+}
+
+// Get Note Directory
+function noteDirectory(action: any): string {
+  return action.directory || "notes"; // Default directory if none specified
+}
+
+// Get File Extension
+function noteExtension(action: any): string {
+  return action.extension || ".md";
+}
+
+// Get Date Format
+function dateFormatted(action: any): string {
+  const now = new Date();
+  return action.date ? dateFormat(now, action.date) : dateFormat(now, "yyyy-mm-dd");
+}
+
+function notePath(action: any): string {
+  const rootDir = vscode.workspace.rootPath;
+  const noteDir = noteDirectory(action);
+
+  return `${rootDir}/${noteDir}`;
+}
+
+async function newNote(action: any): Promise<string> {
+  return `${notePath(action)}/${dateFormatted(action)}-${action.name}${noteExtension(action)}`;
+}
+
+async function createNoteIfNotExists(action: any): Promise<boolean> {
+  if (await pathExists(await newNote(action))) {
+    return false;
+  }
+
+  await createNoteDirectoryIfNotExists(action);
+
+  // Load template content and replace placeholders
+  const content = await generateNoteContent(action);
+  await fs.promises.writeFile(await newNote(action), content);
+  return true;
+}
+
+async function generateNoteContent(action: any): Promise<string> {
+  let content = `# ${dateFormatted(action)}-${action.name}`; // Default content
+  if (action.template) {
+    content = await loadTemplateContent(action.template);
+    content = replacePlaceholders(content, {
+      title: `${dateFormatted(action)}-${action.name}`,
+      date: dateFormatted(action),
+      // Add more placeholders as needed
+    });
+  }
+  return content;
+}
+
+async function createNoteDirectoryIfNotExists(action: any): Promise<void> {
+  if (!(await pathExists(notePath(action)))) {
+    await fs.promises.mkdir(notePath(action), { recursive: true });
+  }
+}
+
+async function focusNote(action: any): Promise<void> {
+  const document = await workspace.openTextDocument(Uri.file(await newNote(action)));
+  const editor = await window.showTextDocument(document);
+
+  // Move the cursor to end of the file
+  const { lineCount } = editor.document;
+  const { range } = editor.document.lineAt(lineCount - 1);
+  editor.selection = new Selection(range.end, range.end);
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await fs.promises.access(path, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Load template content
+async function loadTemplateContent(templateFile: string): Promise<string> {
+  const templatePath = `${vscode.workspace.rootPath}/.foam/templates/${templateFile}`;
+  try {
+    return await fs.promises.readFile(templatePath, "utf8");
+  } catch (err) {
+    console.error("Error reading template file:", err);
+    return "";
+  }
+}
+
+// Replace placeholders in the template
+function replacePlaceholders(template: string, placeholders: { [key: string]: string }): string {
+  return template.replace(/{{(\w+)}}/g, (_, key) => placeholders[key] || "");
 }

@@ -2,6 +2,16 @@
 
 Heavily inspired by [Foam's](https://foambubble.github.io/foam/) [Daily Note](https://foambubble.github.io/foam/daily-notes) feature and [Jeff Hykin's](https://github.com/jeff-hykin/macro-commander) code.
 
+# Enhancements
+
+I loved the foundational work done by [kneely](https://github.com/kneely/note-macros) and have enhanced it with two significant features to make it even more powerful and flexible:
+
+1. **Template Integration:**
+   - **Custom Templates:** You can now use custom templates for your notes. This feature allows you to start with a pre-defined structure or content, tailored to your specific needs, ensuring consistency and saving time on repetitive tasks.
+
+2. **Dynamic Directory and Name Creation:**
+   - **Wildcard Structure:** Use a wildcard character (`?`) in the directory path or note name to dynamically prompt for inputs. This allows for flexible and intuitive organization and naming of your notes.
+
 # Intended Use
 
 This extension was originally developed to go hand in hand with [Foam](https://foambubble.github.io/foam/).
@@ -22,9 +32,11 @@ This extension was heavily inspired by Jeff Hykin's [macro-commander](https://gi
 
 Create your own custom macros by adding them to your `settings.json` (Code|File > Preferences > User Settings). A full example can be found at [settings.json](settings.json)
 
-For example:
+## Example
 
-This macro creates a Weekly note in the Weekly note Directory.
+### Example 1: Weekly Note in a Fixed Directory
+
+This macro creates a Daily note in a fixed Daily directory. It also uses a template to standardize note content.
 
 ```json
 {
@@ -32,11 +44,32 @@ This macro creates a Weekly note in the Weekly note Directory.
     "Weekly": [
       {
         "type": "note",
-        "directory": "Weekly",
+        "directory": "weekly",
         "extension": ".md",
         "name": "weekly-note",
-        "date": "yyyy-W"
-      },
+        "date": "yyyy-W",
+        "template": "weekly-template.md"
+      }
+    ]
+  }
+}
+```
+### Example 2: Meeting Note with Dynamic Directory and Name
+
+This macro creates a Meeting note in a dynamically specified subdirectory under the `Meeting` directory. It uses a template to pre-fill the note content.
+
+```json
+{
+  "note-macros": {
+    "Weekly": [
+      {
+        "type": "note",
+        "directory": "meeting/?",
+        "extension": ".md",
+        "name": "?",
+        "date": "yyyy-mm-dd",
+        "template": "meeting-template.md"
+      }
     ]
   }
 }
@@ -51,22 +84,22 @@ This macro creates a Weekly note in the Weekly note Directory.
 If your macro does not execute check this field first. This field was introduced to separate the existing functionality of [macro-commander](https://github.com/jeff-hykin/macro-commander) and my work. In the future this field will also separate the [Zettelkasten](https://zettelkasten.de/posts/overview/) functionality.
 
 ```json
-"directory": "Weekly"
+"directory": "meeting/?"
 ```
 
-The directory your note will be created.
+The directory where your note will be created. The `?` allows for dynamic input, prompting you to specify a subdirectory name when the macro is executed.
 
 ```json
-"extension": ".md",
+"extension": ".md"
 ```
 
 The extension that will be used. If not supplied this will default to markdown but can be changed.
 
 ```json
-"name": "weekly-note",
+"name": "weekly-note" || "name": "?",
 ```
 
-This will be the name of the note. Both the file name and note title will be effected by this. 
+This will be the name of the note. The `?` allows for dynamic input, prompting you to specify a name when the macro is executed. Both the file name and note title will be effected by this. 
 
 ```json
 "date": "yyyy-W"
@@ -124,30 +157,15 @@ Macros can also execute any of your snippets which is super neat. Just insert th
 
 ## Run macro From command pallette
 
-Simply use `Ctrl+P` or `Alt+P` depend on your os, and type `Note Macros: Run A Macro` then chose the macro you want to execute.
+Simply use `Ctrl+Shft+P` or `Alt+P` depend on your os, and type `Note Macros: Run A Macro` then chose the macro you want to execute.
 
 ## Available Commands for Macros
 
-To list all available commands for your macros use `Ctrl+P` or `Alt+P` depend on your os, and type `Macro Dev: List all the commands that can be used in macros` then chose the macro you want to execute.
-
-
-# Roadmap
-
-## Current Release
-- [x] Creation of completely Custom Notes
-
-## Next Release
-
-- [ ] Fix snippet functionality.
-- [ ] Creation of [Zettelkasten](https://zettelkasten.de/posts/overview/) notes
-
-## Future
-
-As of right now Custom Notes and Zettelkasten notes complete my initial vision of this extension. My new vision is for this extension to become a one stop shop for defining quick commands from `settings.json`. If you have an idea please open an [Issue](https://github.com/kneely/note-macros/issues) and we will discuss.
+To list all available commands for your macros use `Ctrl+Shft+P` or `Alt+P` depend on your os, and type `Macro Dev: List all the commands that can be used in macros` then chose the macro you want to execute.
 
 # Issues
 
-This extension will be extensively used and tested on Windows and Linux. I do not have access to a MacOS machine. With that being said I cannot test on Mac. If you run into any issues on any environment please open an [Issue](https://github.com/kneely/note-macros/issues).
+This extension will be extensively used and tested on Windows and Linux. I do not have access to a MacOS machine. With that being said I cannot test on Mac. If you run into any issues on any environment please open an [Issue](https://github.com/lonelycowboy49/note-macros/issues).
 
 # Credit
 

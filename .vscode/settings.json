@@ -8,12 +8,5 @@
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
     "typescript.tsc.autoDetect": "off",
-    "debug.javascript.suggestPrettyPrinting": false,
-    "cSpell.words": [
-        "Ev",
-        "Eväkallio's",
-        "Hykin's",
-        "Jani",
-        "kallio's"
-    ]
+    "debug.javascript.suggestPrettyPrinting": false
 }
